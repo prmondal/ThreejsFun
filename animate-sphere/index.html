@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>Animated Sphere</title>
+		<style>
+			body { margin: 0; }
+			canvas { width: 100%; height: 100% }
+		</style>
+
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js"></script>
+		<script src="../lib/stats.min.js"></script>
+	</head>
+	<body>
+		<script type="x-shader/x-vertex" id="vertexshader">
+			attribute float displacements;
+			uniform float amplitude;
+			uniform vec3 color;
+			varying vec3 vColor;
+			varying vec3 vNormal;
+
+			void main() {
+			    vec3 vPosition = position + vec3(displacements * amplitude) * normal;
+			    vColor = color;
+			    vNormal = vec3(normal);
+
+			    gl_Position = projectionMatrix *
+			                  modelViewMatrix *
+			                  vec4(vPosition, 1.0);
+			}
+		</script>
+
+		<script type="x-shader/x-fragment" id="fragmentshader">
+			varying vec3 vColor;
+			varying vec3 vNormal;
+
+			void main() {
+			    vec3 light = vec3(0.5,0.2,1.0);
+      
+			    light = normalize(light);
+			  
+			    float dProd = max(0.0, dot(vNormal, light));
+
+			    gl_FragColor = vec4(dProd, dProd, dProd, 1.0);
+			}
+		</script>
+		<script>
+			var scene, 
+				camera,
+				renderer,
+				customShaderMat,
+				displacementsAttrbArray,
+				sphereBufferGeometry,
+				uniforms,
+				displacementFactor = 2.0,
+				speed = 0.0005,
+				stats;
+
+			function init3JS() {
+				scene = new THREE.Scene();
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+				camera.position.z = 20;
+
+				renderer = new THREE.WebGLRenderer({antialias: true});
+				//renderer.setClearColor( 0xf0f0f0 );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				document.body.appendChild( renderer.domElement );
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				document.body.appendChild(stats.domElement);
+
+				uniforms = {
+					color: {type: 'v3', value: new THREE.Vector3(1.0, 0.0, 0.0)},
+					amplitude: {type: 'f', value: 1.0}
+				};
+
+				sphereBufferGeometry = new THREE.SphereBufferGeometry(5, 64, 64);
+
+				displacementsAttrbArray = new Float32Array(sphereBufferGeometry.attributes.position.count);
+
+				for(var j = 0; j < sphereBufferGeometry.attributes.position.count; j++) {
+					displacementsAttrbArray[j] = Math.random() * displacementFactor;
+				}
+
+				sphereBufferGeometry.addAttribute('displacements', new THREE.BufferAttribute(displacementsAttrbArray, 1));
+				
+				initShader();
+				initShape();
+			}
+
+			function initShader() {
+				customShaderMat = new THREE.ShaderMaterial({
+					uniforms: uniforms,
+					wireframe: false,
+					vertexShader: document.getElementById('vertexshader').textContent,
+					fragmentShader: document.getElementById('fragmentshader').textContent
+				});
+			}
+
+			function initShape() {
+				shape = new THREE.Mesh(sphereBufferGeometry, customShaderMat);
+				scene.add(shape);
+			}
+
+			function render() {
+				var time = Date.now() * speed;
+				
+				uniforms.amplitude.value = 1.5 * Math.sin(time);
+
+				/*for(var i = 0; i < displacementsAttrbArray.length; i++) {
+					displacementsAttrbArray[i] = Math.sin(i * 0.5 + time);
+				}
+
+				shape.geometry.attributes.displacements.needsUpdate = true;*/
+
+				stats.update();
+
+				requestAnimationFrame(render);
+				renderer.render(scene, camera);
+			}
+
+			init3JS();
+			render();
+		</script>
+	</body>
+</html>
